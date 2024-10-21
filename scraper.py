@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
+import re
 
 BASE_URL = "https://www.londonzoo.org"
 ANIMAL_LIST_URL = f"{BASE_URL}/whats-here/animals"
@@ -31,12 +32,29 @@ def get_animal_links(page_num):
     for item in animal_list.find_all('li', class_='listing__StyledCardWrapper-sc-z2e3hb-3'):
         link_tag = item.find('a', href=True)
         if link_tag:
-            animal_links.append(BASE_URL + link_tag['href'])  # Ensure complete URL
-            print(f"Found animal link: {BASE_URL + link_tag['href']}")
+            # Correcting the URL concatenation
+            link = link_tag['href']
+            if not link.startswith("http"):
+                link = BASE_URL + link
+            animal_links.append(link)
+            print(f"Found animal link: {link}")
         else:
             print("No link found in this card.")
     
     return animal_links
+
+def extract_facts(text):
+    """Split description into multiple facts."""
+    facts = text.split('. ')
+    facts = [fact.strip() + '.' for fact in facts if fact]  # Ensure each fact ends with a period
+    return facts
+
+def get_largest_image_url(srcset):
+    """Extract the largest image URL from a srcset attribute."""
+    image_candidates = [img.strip() for img in srcset.split(',')]
+    if image_candidates:
+        return image_candidates[-1].split()[0]  # Return the URL of the largest image
+    return "No image available"
 
 def get_animal_info(url):
     """Fetch and parse animal details from its individual page."""
@@ -53,13 +71,14 @@ def get_animal_info(url):
         # Animal name
         name = soup.find('h1').text.strip()
 
-        # Scientific name
-        scientific_name_tag = soup.find('div', class_='tile-block--value', string='Scientific name')
-        scientific_name = scientific_name_tag.find_next('div', class_='tile-block--value').text.strip() if scientific_name_tag else "N/A"
+        # Scientific name - Found in a <span> tag within the hero section
+        scientific_name_tag = soup.find('div', class_='hero__inner-wrapper').find('span')
+        scientific_name = scientific_name_tag.text.strip() if scientific_name_tag else "N/A"
 
-        # Description
-        description_tag = soup.find('div', class_='lib__GridWrapper-sc-1inb7gq-1 WYSIWYG__WYSIWYGWrapper-sc-1k1qbak-0')
-        description = description_tag.get_text(separator=' ', strip=True) if description_tag else "No description available."
+        # Fallback for scientific name (in case it's in the body somewhere)
+        if scientific_name == "N/A":
+            scientific_name_em_tag = soup.find('em')
+            scientific_name = scientific_name_em_tag.text.strip() if scientific_name_em_tag else "N/A"
 
         # Area of zoo
         area_tag = soup.find('div', class_='tile-block--label', string='Area of zoo')
@@ -88,15 +107,40 @@ def get_animal_info(url):
         habitat_tag = soup.find('div', class_='tile-block--label', string='Habitat')
         habitat = habitat_tag.find_next('div', class_='tile-block--value').text.strip() if habitat_tag else "Unknown"
 
-        # Image URL
-        image_tag = soup.find('img', alt=True)
-        image_url = image_tag['src'] if image_tag else "No image available"
+        # Image URL - Extract from 'srcset' in the hero image section
+        image_tag = soup.find('div', class_='hero__image').find('img')
+        image_url = get_largest_image_url(image_tag['srcset']) if image_tag and 'srcset' in image_tag.attrs else "No image available"
+
+        # Extract section-based data
+        appearance, diet, threats, general_facts = "", "", "", []
+        fact_tags = soup.find_all('h3')  # Headers where facts, appearance, and diet might be
+
+        for tag in fact_tags:
+            header = tag.text.strip()
+            content = tag.find_next('p').text.strip()
+
+            if re.search(r"(What do|What does).*look like", header, re.IGNORECASE):
+                appearance = content
+            elif re.search(r"(What do|What does).*eat", header, re.IGNORECASE):
+                diet = content
+            elif re.search(r"threats", header, re.IGNORECASE):
+                threats = content
+            elif 'Fact' in header:  # Ensure fact headings are correctly identified
+                general_facts += extract_facts(content)
+
+        # Ensure we have up to Fact 1 to Fact 5
+        fact_fields = {}
+        for i, fact in enumerate(general_facts[:5], start=1):
+            fact_fields[f'Fact {i}'] = fact
 
         return {
             "name": name,
             "scientific_name": scientific_name,
-            "description": description,
+            "appearance": appearance,
+            "diet": diet,
+            "threats": threats,
             "url": url,
+            "image_url": image_url,
             "area_of_zoo": area_of_zoo,
             "enclosure_status": enclosure_status,
             "iucn_status": iucn_status,
@@ -104,7 +148,7 @@ def get_animal_info(url):
             "family": family,
             "region": region,
             "habitat": habitat,
-            "image_url": image_url
+            **fact_fields  # Add Fact 1, Fact 2, etc.
         }
     except AttributeError as e:
         print(f"Error parsing {url}: {e}")
