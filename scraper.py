@@ -75,11 +75,6 @@ def get_animal_info(url):
         scientific_name_tag = soup.find('div', class_='hero__inner-wrapper').find('span')
         scientific_name = scientific_name_tag.text.strip() if scientific_name_tag else "N/A"
 
-        # Fallback for scientific name (in case it's in the body somewhere)
-        if scientific_name == "N/A":
-            scientific_name_em_tag = soup.find('em')
-            scientific_name = scientific_name_em_tag.text.strip() if scientific_name_em_tag else "N/A"
-
         # Area of zoo
         area_tag = soup.find('div', class_='tile-block--label', string='Area of zoo')
         area_of_zoo = area_tag.find_next('div', class_='tile-block--value').text.strip() if area_tag else "Unknown"
@@ -125,7 +120,8 @@ def get_animal_info(url):
                 diet = content
             elif re.search(r"threats", header, re.IGNORECASE):
                 threats = content
-            elif 'Fact' in header:  # Ensure fact headings are correctly identified
+            else:
+                # General fact section
                 general_facts += extract_facts(content)
 
         # Ensure we have up to Fact 1 to Fact 5
