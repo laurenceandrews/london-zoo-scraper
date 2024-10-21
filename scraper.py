@@ -21,8 +21,6 @@ def get_animal_links(page_num):
         return []
     
     soup = BeautifulSoup(response.text, 'html.parser')
-
-    # Find the animal listing section
     animal_list = soup.find('ul', class_='animal-listing__card-list')
     
     if not animal_list:
@@ -31,15 +29,12 @@ def get_animal_links(page_num):
     
     animal_links = []
     for item in animal_list.find_all('li', class_='listing__StyledCardWrapper-sc-z2e3hb-3'):
-        # Get the link from <a> tag inside <li>
         link_tag = item.find('a', href=True)
         if link_tag:
-            link = link_tag['href']
-            # Check if the URL is absolute or relative
-            if link.startswith("/"):
-                link = BASE_URL + link  # Prepend BASE_URL if the link is relative
-            animal_links.append(link)
-            print(f"Found animal link: {link}")
+            animal_links.append(BASE_URL + link_tag['href'])  # Ensure complete URL
+            print(f"Found animal link: {BASE_URL + link_tag['href']}")
+        else:
+            print("No link found in this card.")
     
     return animal_links
 
@@ -55,36 +50,61 @@ def get_animal_info(url):
     soup = BeautifulSoup(response.text, 'html.parser')
     
     try:
-        # Parse animal name and scientific name
-        name = soup.find('h2').text.strip() if soup.find('h2') else "Unknown"
-        scientific_name_tag = soup.find('em')
-        scientific_name = scientific_name_tag.text.strip() if scientific_name_tag else "Unknown"
+        # Animal name
+        name = soup.find('h1').text.strip()
 
-        # Description of the animal (first paragraph)
-        description_tag = soup.find('p')
+        # Scientific name
+        scientific_name_tag = soup.find('div', class_='tile-block--value', string='Scientific name')
+        scientific_name = scientific_name_tag.find_next('div', class_='tile-block--value').text.strip() if scientific_name_tag else "N/A"
+
+        # Description
+        description_tag = soup.find('div', class_='lib__GridWrapper-sc-1inb7gq-1 WYSIWYG__WYSIWYGWrapper-sc-1k1qbak-0')
         description = description_tag.get_text(separator=' ', strip=True) if description_tag else "No description available."
 
-        # Additional details extracted from the "tile-block" sections
-        extra_info = {}
-        for tile in soup.find_all('div', class_='tile-block'):
-            label = tile.find('div', class_='tile-block--label').text.strip() if tile.find('div', class_='tile-block--label') else None
-            value = tile.find('div', class_='tile-block--value').text.strip() if tile.find('div', class_='tile-block--value') else None
-            
-            if label and value:
-                extra_info[label] = value
+        # Area of zoo
+        area_tag = soup.find('div', class_='tile-block--label', string='Area of zoo')
+        area_of_zoo = area_tag.find_next('div', class_='tile-block--value').text.strip() if area_tag else "Unknown"
+
+        # Enclosure status
+        enclosure_status_tag = soup.find('div', class_='tile-block--label', string='Enclosure status')
+        enclosure_status = enclosure_status_tag.find_next('div', class_='tile-block--value').text.strip() if enclosure_status_tag else "Unknown"
+
+        # IUCN status
+        iucn_status_tag = soup.find('div', class_='tile-block--label', string='IUCN status')
+        iucn_status = iucn_status_tag.find_next('div', class_='tile-block--value').text.strip() if iucn_status_tag else "Unknown"
+
+        # Order and Family
+        order_tag = soup.find('div', class_='tile-block--label', string='Order')
+        order = order_tag.find_next('div', class_='tile-block--value').text.strip() if order_tag else "Unknown"
+
+        family_tag = soup.find('div', class_='tile-block--label', string='Family')
+        family = family_tag.find_next('div', class_='tile-block--value').text.strip() if family_tag else "Unknown"
+
+        # Region
+        region_tag = soup.find('div', class_='tile-block--label', string='Region')
+        region = region_tag.find_next('div', class_='tile-block--value').text.strip() if region_tag else "Unknown"
+
+        # Habitat
+        habitat_tag = soup.find('div', class_='tile-block--label', string='Habitat')
+        habitat = habitat_tag.find_next('div', class_='tile-block--value').text.strip() if habitat_tag else "Unknown"
+
+        # Image URL
+        image_tag = soup.find('img', alt=True)
+        image_url = image_tag['src'] if image_tag else "No image available"
 
         return {
             "name": name,
             "scientific_name": scientific_name,
             "description": description,
             "url": url,
-            "area_of_zoo": extra_info.get('Area of zoo', 'Unknown'),
-            "enclosure_status": extra_info.get('Enclosure status', 'Unknown'),
-            "iucn_status": extra_info.get('IUCN status', 'Unknown'),
-            "order": extra_info.get('Order', 'Unknown'),
-            "family": extra_info.get('Family', 'Unknown'),
-            "region": extra_info.get('Region', 'Unknown'),
-            "habitat": extra_info.get('Habitat', 'Unknown')
+            "area_of_zoo": area_of_zoo,
+            "enclosure_status": enclosure_status,
+            "iucn_status": iucn_status,
+            "order": order,
+            "family": family,
+            "region": region,
+            "habitat": habitat,
+            "image_url": image_url
         }
     except AttributeError as e:
         print(f"Error parsing {url}: {e}")
@@ -120,14 +140,7 @@ if __name__ == "__main__":
     animals = scrape_all_animals()
     
     if animals:
-        # Define the columns for the CSV output, including the new details
-        df = pd.DataFrame(animals, columns=[
-            'name', 'scientific_name', 'description', 'url', 
-            'area_of_zoo', 'enclosure_status', 'iucn_status', 
-            'order', 'family', 'region', 'habitat'
-        ])
-        
-        # Save to CSV
+        df = pd.DataFrame(animals)
         df.to_csv('london_zoo_animals.csv', index=False)
         print(f"\nScraping complete. {len(animals)} animals saved to london_zoo_animals.csv")
     else:
