@@ -3,8 +3,6 @@
 ## 📄 Overview
 The London Zoo Scraper is a Python-based project designed to scrape animal data from the London Zoo website, compiling essential details into a structured CSV file. This information is then further converted into Quizlet-compatible flashcard format for easy import, making it a helpful tool for studying animal facts, learning scientific names, and understanding species conservation statuses.
 
-![London Zoo Scraper](./screenshots/LondonZooScraper.png)
-
 ## 🛠️ Technologies Used
 - **Web Scraping**: Python, Requests, BeautifulSoup
 - **Data Processing**: Pandas
@@ -23,8 +21,6 @@ The London Zoo Scraper is a Python-based project designed to scrape animal data 
 - **CSV Export**: Exports the scraped data in CSV format for easy data management.
 - **Quizlet Flashcard Conversion**: Transforms animal data into a format suitable for Quizlet, enabling flashcard study for all recorded animals.
 - **Modular Design**: The scraper and converter scripts are designed to function independently, allowing you to run only the necessary components.
-
-![Example Flashcards](./screenshots/Flashcards.png)
 
 ## 📋 Data Collected
 The scraper extracts various fields for each animal:
