@@ -79,11 +79,6 @@ The `converter.py` script processes the CSV data into a Quizlet-compatible forma
     ```
    This will create `quizlet_format.txt`, ready for Quizlet import.
 
-## 🧪 Testing
-To ensure the scraper and converter scripts run smoothly, you can test them individually:
-- **Scraper**: Run `python scraper.py` to test data scraping.
-- **Converter**: Run `python converter.py` after scraping to ensure data converts correctly into flashcard format.
-
 ## 📝 Contributing
 Contributions are welcome! Feel free to fork the repository and submit pull requests for new features, improvements, or bug fixes.
 
